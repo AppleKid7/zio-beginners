@@ -1,6 +1,11 @@
 package org.atlscalameetup.tictactoe
 
+import org.atlscalameetup.tictactoe.GameDomain.Player.X
+import org.atlscalameetup.tictactoe.GameDomain.Ruleset.XGoesFirst
+import org.atlscalameetup.tictactoe.GameDomain.{BoardRepr, GameCommand, GameResult, GameState, Player, Square, TicTacToeAggregate, makeGame}
 import zio.*
+
+import scala.util.{Success, Try}
 
 // ZIO stuff here
 // all the I/O goes here
@@ -32,3 +37,69 @@ case class LiveController() extends Controller {
 //representation of board state
 //  Xs Os
 //  illegal moves?
+
+
+
+object EffectfulMain extends ZIOAppDefault:
+  
+  def inProgress(agg: TicTacToeAggregate): Task[Boolean] = {
+    agg.queryState.map {
+      case GameState.NotStarted => true
+      case GameState.InProgress(rules, boardRepr) => true
+      case GameState.Finished(finalBoard) => false
+    }
+  }
+
+  val standardFailure = Left("Failed to parse command, try 'Start', 'X (row) (col)', 'O (row) (col)'")
+  
+  def parse(input:String): Either[String, GameCommand] =
+    input.toUpperCase match {
+      case "START" =>
+        Right(GameCommand.Start(XGoesFirst))
+      case s"$player $row $col" =>
+        val playerObj = Try(Player.valueOf(player))
+        (playerObj, row.toIntOption, col.toIntOption) match {
+          case (Success(p), Some(r), Some(c)) => Right(GameCommand.Play(p, Position(r, c)))
+          case _ => standardFailure
+        }
+      case _ => standardFailure
+    }
+    
+  def formatBoard(b: BoardRepr): String =
+    "\n" + (b.map(_.map {
+      case Square.Played(p) => p.toString
+      case Square.Empty => " "
+    }.mkString(" | ")).mkString("\n-----------\n")) + "\n"
+    
+  def formatResult(result: GameResult): String =
+    result match
+      case GameResult.Success(nextPlayer, boardRepr) => 
+        s"Success! Player $nextPlayer goes next.\n" + formatBoard(boardRepr) 
+      case other: GameResult => other.message
+
+  def inputLoop(agg:TicTacToeAggregate): Task[Unit] =
+    for {
+      input <- zio.Console.readLine(">>> ")
+      maybeCommand = parse(input)
+      _ <- maybeCommand match {
+                case Left(errMessage) =>
+                  zio.Console.printLine(errMessage).flatMap {_ => inputLoop(agg)}
+                case Right(command) => 
+                  for {
+                    result <- agg.acceptCommand(command)
+                    output = formatResult(result)
+                    _ <- zio.Console.printLine(output)
+                    continue <- inProgress(agg)
+                    _ <- if(continue) inputLoop(agg) else zio.Console.printLine("All Finished")
+                  } yield ()
+            }
+    } yield ()
+
+  def run: ZIO[Any & ZIOAppArgs & Scope, Throwable, Unit] =
+    for {
+      newGame <- makeGame()
+      _ <- inputLoop(newGame)
+    } yield ()
+  
+    
+  

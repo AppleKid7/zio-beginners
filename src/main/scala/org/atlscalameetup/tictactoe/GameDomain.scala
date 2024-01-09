@@ -6,7 +6,7 @@ import zio.{Task, UIO, ZIO}
 object GameDomain:
   enum Ruleset:
     case XGoesFirst
-  
+
   enum Player:
     case X
     case O
@@ -17,7 +17,7 @@ object GameDomain:
 
   import Player._
   import Square._
-  
+
   // Array is used because these are fixed-size and small
   type BoardRepr = Array[Array[Square]]
 
@@ -26,40 +26,40 @@ object GameDomain:
     Array(Empty, Empty, Empty),
     Array(Empty, Empty, Empty)
   )
-  
+
   extension (board: BoardRepr)
     def isEmpty: Boolean = board.flatten.forall {
       case Empty => true
       case _ => false
     }
-    
+
     def isFull: Boolean = board.flatten.forall {
       case Played(_) => true
       case Empty => false
     }
-    
+
     def get(pos:Position): Square = board(pos.row)(pos.col)
-    
+
     def set(pos:Position, player: Player): BoardRepr =
       board.updated(pos.row, board(pos.row).updated(pos.col, Square.Played(player)))
-    
+
     def countPlays: Int = board.flatten.count {
       case Played(p) => true
       case Empty => false
     }
-    
+
     def extractRow(row:Int): Seq[Square] = board(row)
-      
+
     def extractCol(col:Int): Seq[Square] = board.map(_(col))
-      
+
     def extractDiag1(): Seq[Square] = Array(board(0)(0), board(1)(1), board(2)(2))
-      
+
     def extractDiag2(): Seq[Square] = Array(board(0)(2), board(1)(1), board(2)(0))
-      
+
     def extractTriples(): Seq[Seq[Square]] =
       val indices = 0.to(2)
       indices.map(extractRow) ++ indices.map(extractCol) :+ extractDiag1() :+ extractDiag2()
-     
+
     def hasWinner(player:Player): Boolean =
       extractTriples().exists { triple =>
         triple.forall {
@@ -67,7 +67,7 @@ object GameDomain:
           case _ => false
         }
       }
-      
+
   def getNextPlayer(rules: Ruleset, board: BoardRepr): Player =
     rules match
       case Ruleset.XGoesFirst => if ((board.countPlays % 2) == 0) X else O
@@ -76,11 +76,11 @@ object GameDomain:
     case NotStarted
     case InProgress(rules: Ruleset, boardRepr: BoardRepr)
     case Finished(finalBoard: BoardRepr)
-  
+
   enum GameCommand:
     case Start(ruleSet: Ruleset)
     case Play(who: Player, pos: Position)
-  
+
   enum GameResult(val message: String):
     case Success(nextPlayer: Player, boardRepr: BoardRepr) extends GameResult(s"Play accepted.")
     case HasNotStarted extends GameResult(s"The game must be started first")
@@ -90,10 +90,10 @@ object GameDomain:
     case Drew(finalBoard: BoardRepr) extends GameResult(s"The game is a draw.")
     case AlreadyFinished extends GameResult("Game is finished.")
     case AlreadyStarted extends GameResult("Cannot restart an already started game.")
-    
+
   trait TicTacToeAggregate extends Aggregate[GameCommand, GameResult, GameState]
-  
-  def makeGame: Task[TicTacToeAggregate] =
+
+  def makeGame(): Task[TicTacToeAggregate] =
     import GameState._
     import GameResult._
     import GameCommand._
@@ -106,10 +106,12 @@ object GameDomain:
             case NotStarted =>
               cmd match
                 case Start(ruleSet) =>
-                  (Success(X, emptyBoard), InProgress(ruleSet, emptyBoard))
+                  val newBoard = emptyBoard
+                  val nextPlayer = getNextPlayer(ruleSet, newBoard)
+                  (Success(nextPlayer, newBoard), InProgress(ruleSet, newBoard))
                 case _ =>
-                  (HasNotStarted, NotStarted) 
-                  
+                  (HasNotStarted, NotStarted)
+
 
             case state@InProgress(rules, board) =>
               cmd match
@@ -131,7 +133,7 @@ object GameDomain:
                           if (newBoard.isFull) then
                             (Drew(newBoard), Finished(newBoard))
                           (Success(getNextPlayer(rules, newBoard),  newBoard), InProgress(rules, newBoard))
-              
+
             case state:Finished =>
               (AlreadyFinished, state)
             }
