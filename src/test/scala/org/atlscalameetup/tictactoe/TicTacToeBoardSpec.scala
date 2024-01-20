@@ -8,9 +8,9 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
     test("No winner") {
       val board = TicTacToeBoard(
         Vector(
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         ))
       val result = board.checkWinner
       assertTrue(result == None)
@@ -18,9 +18,9 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
     test("X is winner") {
       val board = TicTacToeBoard(
         Vector(
-          Vector(Some(Mark.X), Some(Mark.X), Some(Mark.X)),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector(Some(Mark.O), None, Some(Mark.O))
+          Vector(Mark.X, Mark.X, Mark.X),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector(Mark.O, Mark.Empty, Mark.O)
         ))
       val result = board.checkWinner
       assertTrue(result == Some(Mark.X))
@@ -28,41 +28,41 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
     test("placing X in 0,0") {
       val board: TicTacToeBoard = TicTacToeBoard(
         Vector(
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         ))
       val result = board.placeMark(Mark.X, Position(0, 0))
       val expected = Right(TicTacToeBoard(
         Vector(
-          Vector(Some(Mark.X), None, None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector(Mark.X, Mark.Empty, Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         )))
       assertTrue(result == expected)
     },
     test("placing X in 2,1 when there's already an X in 0, 0") {
       val board: TicTacToeBoard = TicTacToeBoard(
         Vector(
-          Vector(Some(Mark.X), None, None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector(Mark.X, Mark.Empty, Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         ))
       val result = board.placeMark(Mark.X, Position(2, 1))
       val expected = Right(TicTacToeBoard(
         Vector(
-          Vector(Some(Mark.X), None, None),
-          Vector(None, None, Some(Mark.X)),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
+          Vector(Mark.X, Mark.Empty, Mark.Empty),
+          Vector(Mark.Empty, Mark.Empty, Mark.X),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
         )))
       assertTrue(result == expected)
     },
     test("placing O in 2,1 when it's already taken") {
       val board: TicTacToeBoard = TicTacToeBoard(
         Vector(
-          Vector(Some(Mark.X), None, None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector(Mark.X, Mark.Empty, Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         ))
       val result = board.placeMark(Mark.O, Position(0, 0))
       assertTrue(result.isLeft,
@@ -70,6 +70,28 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
         case Left(e) => e.isInstanceOf[Throwable]
         case _ => false
       })
+    },
+    test("Newly initialized board is empty") {
+      val board: TicTacToeBoard = TicTacToeBoard(
+        Vector(
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
+        ))
+      val result = board.isEmpty
+      val expected = true
+      assertTrue(result == expected)
+    },
+    test("Board with all spaces taken is full") {
+      val board: TicTacToeBoard = TicTacToeBoard(
+        Vector(
+          Vector(Mark.X, Mark.O, Mark.X),
+          Vector(Mark.O, Mark.O, Mark.X),
+          Vector(Mark.X, Mark.X, Mark.O)
+        ))
+      val result = board.isFull
+      val expected = true
+      assertTrue(result == expected)
     }
   )
 }

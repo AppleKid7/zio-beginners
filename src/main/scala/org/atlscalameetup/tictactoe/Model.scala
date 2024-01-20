@@ -2,16 +2,24 @@ package org.atlscalameetup.tictactoe
 
 import monocle.syntax.all.*
 
+enum GameRulesError:
+  case SpaceAlreadyTaken
 
 case class Position(col: Int, row: Int) {
   def get(b: TicTacToeBoard) = b.board(col)(row)
-  def set(b: TicTacToeBoard, mark: Mark) = b.board(col)(row)
+  def set(b: TicTacToeBoard, mark: Mark) = b.placeMark(mark, this)
 }
 
-case class TicTacToeBoard(board: Vector[Vector[Option[Mark]]]) {
-  // Lens for accessing an element at a specific row and column
-//  private def elementAt(row: Int, col: Int): Optional[Vector[Vector[Option[Mark]]], Option[Mark]] =
-//    GenLens[Vector[Vector[Option[Mark]]]](board)(_.lift(row).flatMap(_.lift(col)))
+case class TicTacToeBoard(board: Vector[Vector[Mark]]) {
+  def isEmpty: Boolean = board.flatten.forall {
+    case Mark.Empty => true
+    case _ => false
+  }
+
+  def isFull: Boolean = board.flatten.forall {
+    case Mark.Empty => false
+    case _ => true
+  }
 
   def checkWinner: Option[Mark] = {
     val rows = board
@@ -23,25 +31,25 @@ case class TicTacToeBoard(board: Vector[Vector[Option[Mark]]]) {
 
     val lines = rows ++ columns ++ diagonals
     lines.flatMap { line =>
-      if (line.forall(_ == line.head) && line.head.isDefined) line.head
+      if (line.forall(_ == line.head) && line.head != Mark.Empty) line
       else None
     }.headOption
   }
 
-  def placeMark(mark: Mark, position: Position): Either[Throwable, TicTacToeBoard] = {
+  def placeMark(mark: Mark, position: Position): Either[GameRulesError, TicTacToeBoard] = {
     board(position.row)(position.col) match {
-      case None =>
+      case Mark.Empty =>
         Right(
-          this.focus(_.board.index(position.row).index(position.col)).replace(Some(mark))
+          this.focus(_.board.index(position.row).index(position.col)).replace(mark)
         )
-      case Some(_) =>
-        Left(new Throwable("Can't place a mark on a space that's already taken!"))
+      case _ =>
+        Left(GameRulesError.SpaceAlreadyTaken) //("Can't place a mark on a space that's already taken!")
     }
   }
 }
 
 enum Mark:
-  case X, O
+  case X, O, Empty
 
 enum GameState:
   case GameOver(winner: Mark)

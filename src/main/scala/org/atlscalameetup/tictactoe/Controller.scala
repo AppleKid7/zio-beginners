@@ -15,10 +15,44 @@ import scala.util.{Success, Try}
 
 trait Controller { // Implementation of Controller can depend on Console
   def runGame: Task[Unit]
+  def handleInput(input: String): Task[Unit]
 }
 
-case class LiveController() extends Controller {
-  override def runGame: Task[Unit] = ??? // use Console
+enum InputError:
+  case ParsingError
+  case WrongInput
+
+case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends Controller {
+  override def runGame: Task[Unit] = ??? /*for {
+    console <- ZIO.service[Console]
+    _ <- console.printLine("X's turn")
+
+  } yield ()*/
+
+  private def parseInput(input: String): Either[InputError, (Mark, Position)] = {
+    def checkBounds(col: Int, row: Int): Boolean =
+      if ((col < 0 || col > 2) || (row < 0 || col > 2)) false
+      else true
+
+    input match {
+      case s"$mark: $col, $row" if (mark == "X" || mark == "O") =>
+        (col.toIntOption, row.toIntOption) match {
+          case (Some(col), Some(row)) if checkBounds(col, row) =>
+            Right((Mark.valueOf(mark), Position(col, row)))
+          case (None, None) => Left(InputError.ParsingError)
+          case _ => Left(InputError.WrongInput)
+        }
+      case _ => Left(InputError.ParsingError)
+    }
+  }
+
+  override def handleInput(input: String): Task[Unit] = ???
+    /*input match {
+      case s"$mark: $col, $row" if (mark == "X" || mark == "O") => board.modify { b =>
+        b.
+      }
+      case _ =>
+    }*/
 }
 // make companion object with live method
 
@@ -38,6 +72,14 @@ case class LiveController() extends Controller {
 //  Xs Os
 //  illegal moves?
 
+object LiveController {
+  def make(initial: TicTacToeBoard): ZLayer[Console, Nothing, LiveController] = ZLayer.scoped {
+    for {
+      console <- ZIO.service[Console]
+      board <- Ref.make(initial)
+    } yield LiveController(board, console)
+  }
+}
 
 
 object EffectfulMain extends ZIOAppDefault:

@@ -7,9 +7,9 @@ object ViewSpec extends ZIOSpecDefault {
     test("New game") {
       val board = TicTacToeBoard(
         Vector(
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         ))
       val result = View.render(GameState.Playing(board, Mark.X))
       val expected =
@@ -27,23 +27,28 @@ object ViewSpec extends ZIOSpecDefault {
       val expected = "Game over! X won"
       assertTrue(result == expected)
     },
-    test("New game") {
+    test("Game in progress with X at 0,0 and O at 1,1") {
       val board = TicTacToeBoard(
         Vector(
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None),
-          Vector.tabulate[Option[Mark]](3)(_ => None)
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
         ))
-      val result = View.render(GameState.Playing(board, Mark.X))
-      val expected =
-        """
-          |- | - | -
-          |----------
-          |- | - | -
-          |----------
-          |- | - | -
-          |""".stripMargin
-      assertTrue(result == expected)
+      for {
+        boardX <- board.placeMark(Mark.X, Position(0,0))
+        boardY <- boardX.placeMark(Mark.O, Position(1, 1))
+        result = View.render(GameState.Playing(boardY, Mark.X))
+      } yield {
+        val expected =
+          """
+            |X | - | -
+            |----------
+            |- | O | -
+            |----------
+            |- | - | -
+            |""".stripMargin
+        assertTrue(result == expected)
+      }
     },
   )
 }

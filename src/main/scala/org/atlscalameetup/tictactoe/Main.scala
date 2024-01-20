@@ -1,7 +1,19 @@
 package org.atlscalameetup.tictactoe
 
-@main def hello: Unit =
-  println("Hello world!")
-  println(msg)
+import zio.*
 
-def msg = "I was compiled by Scala 3. :)"
+object Main extends ZIOAppDefault {
+  val run = (for {
+    controller <- ZIO.environment[Controller]
+  } yield ()).provide(
+    ZLayer.succeed(Console.ConsoleLive),
+    LiveController.make(
+      TicTacToeBoard(
+        Vector(
+          Vector(Mark.X, Mark.O, Mark.X),
+          Vector(Mark.O, Mark.O, Mark.X),
+          Vector(Mark.X, Mark.X, Mark.O)
+        )),
+    )
+  )
+}

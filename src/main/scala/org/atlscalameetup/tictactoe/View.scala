@@ -9,7 +9,10 @@ object View {
       case GameState.Playing(board, _) =>
         val result = board.board.map { rows =>
           rows.map { col =>
-            col.map(_.toString).getOrElse("-")
+            col match {
+              case Mark.Empty => "-"
+              case _ => col.toString
+            }
           }.mkString(" | ")
         }.mkString("\n----------\n")
         s"\n$result\n"
