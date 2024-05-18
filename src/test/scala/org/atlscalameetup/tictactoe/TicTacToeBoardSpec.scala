@@ -52,8 +52,8 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
       val expected = Right(TicTacToeBoard(
         Vector(
           Vector(Mark.X, Mark.Empty, Mark.Empty),
-          Vector(Mark.Empty, Mark.Empty, Mark.X),
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector(Mark. Empty, Mark.X, Mark.Empty),
         )))
       assertTrue(result == expected)
     },
@@ -62,12 +62,12 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
         Vector(
           Vector(Mark.X, Mark.Empty, Mark.Empty),
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty)
+          Vector(Mark.Empty, Mark.X, Mark.Empty),
         ))
-      val result = board.placeMark(Mark.O, Position(0, 0))
+      val result = board.placeMark(Mark.O, Position(2, 1))
       assertTrue(result.isLeft,
         result match {
-        case Left(e) => e.isInstanceOf[Throwable]
+        case Left(e) => e.isInstanceOf[GameRulesError]
         case _ => false
       })
     },

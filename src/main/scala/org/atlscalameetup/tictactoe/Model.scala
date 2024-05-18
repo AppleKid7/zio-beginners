@@ -5,7 +5,7 @@ import monocle.syntax.all.*
 enum GameRulesError:
   case SpaceAlreadyTaken
 
-case class Position(col: Int, row: Int) {
+case class Position(row: Int, col: Int) {
   def get(b: TicTacToeBoard) = b.board(col)(row)
   def set(b: TicTacToeBoard, mark: Mark) = b.placeMark(mark, this)
 }
