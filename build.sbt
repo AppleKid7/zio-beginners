@@ -1,7 +1,7 @@
-val scala3Version = "3.3.1"
+val scala3Version = "3.3.3"
 
-lazy val zioVersion = "2.0.19"
-lazy val zioPreludeVersion = "1.0.0-RC21"
+lazy val zioVersion = "2.1.1"
+lazy val zioPreludeVersion = "1.0.0-RC26"
 lazy val monocleVersion = "3.2.0"
 
 lazy val root = project
