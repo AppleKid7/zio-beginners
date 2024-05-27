@@ -51,6 +51,13 @@ case class TicTacToeBoard(board: Vector[Vector[Mark]]) {
 enum Mark:
   case X, O, Empty
 
+  def asString: String =
+    this match {
+      case X => "X"
+      case O => "O"
+      case Empty => "Empty"
+    }
+
 enum GameState:
-  case GameOver(winner: Mark)
+  case GameOver(finalBoard: TicTacToeBoard, winner: Option[Mark])
   case Playing(board: TicTacToeBoard, currentTurn: Mark)

@@ -2,10 +2,11 @@ package org.atlscalameetup.tictactoe
 
 import org.atlscalameetup.tictactoe.GameDomain.Player.X
 import org.atlscalameetup.tictactoe.GameDomain.Ruleset.XGoesFirst
-import org.atlscalameetup.tictactoe.GameDomain.{BoardRepr, GameCommand, GameResult, GameState, Player, Square, TicTacToeAggregate, makeGame}
+// import org.atlscalameetup.tictactoe.GameDomain.{BoardRepr, GameCommand, GameResult, GameState, Player, Square, TicTacToeAggregate, makeGame}
 import zio.*
 
 import scala.util.{Success, Try}
+import cats.syntax.writer
 
 // ZIO stuff here
 // all the I/O goes here
@@ -15,12 +16,17 @@ import scala.util.{Success, Try}
 
 trait Controller { // Implementation of Controller can depend on Console
   def runGame: Task[Unit]
-  def handleInput(input: String): Task[Unit]
+  def gameLoop(currentMark: Mark, oldState: GameState): IO[InputError, Unit]
+  def handleInput(command: Command, board: TicTacToeBoard): Either[InputError, GameState]
 }
 
 enum InputError:
+  case GeneralConsoleError
   case ParsingError
-  case WrongInput
+  case WrongInput(message: String)
+
+
+type Command = (Mark, Position)
 
 case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends Controller {
   override def runGame: Task[Unit] = ??? /*for {
@@ -29,7 +35,22 @@ case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends 
 
   } yield ()*/
 
-  private def parseInput(input: String): Either[InputError, (Mark, Position)] = {
+  override def gameLoop(currentMark: Mark, oldState: GameState): IO[InputError, Unit] =
+    for {
+      input <- console.readLine(">>> ").mapError(_ => InputError.ParsingError)
+      validated <- ZIO.fromEither(parseCommand(input))
+      gameBoard <- board.get
+      _ <- handleInput(validated, gameBoard) match {
+        case Right(newState) =>
+          newState match {
+            case GameState.Playing(newBoard, newMark) => console.printLine(View.render(newState)).mapError(_ => InputError.GeneralConsoleError) <*> gameLoop(newMark, newState)
+            case gameOver: GameState.GameOver => console.printLine(View.render(gameOver)).mapError(_ => InputError.GeneralConsoleError)
+          }
+        case Left(error) => gameLoop(currentMark, oldState)
+      } 
+    } yield ()
+
+  private def parseCommand(input: String): Either[InputError, Command] = {
     def checkBounds(col: Int, row: Int): Boolean =
       if ((col < 0 || col > 2) || (row < 0 || col > 2)) false
       else true
@@ -40,19 +61,29 @@ case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends 
           case (Some(col), Some(row)) if checkBounds(col, row) =>
             Right((Mark.valueOf(mark), Position(col, row)))
           case (None, None) => Left(InputError.ParsingError)
-          case _ => Left(InputError.WrongInput)
+          case _ => Left(InputError.WrongInput("Please make sure your input is in the correct numerical format: row, column"))
         }
       case _ => Left(InputError.ParsingError)
     }
   }
 
-  override def handleInput(input: String): Task[Unit] = ???
-    /*input match {
-      case s"$mark: $col, $row" if (mark == "X" || mark == "O") => board.modify { b =>
-        b.
-      }
-      case _ =>
-    }*/
+  override def handleInput(command: Command, board: TicTacToeBoard): Either[InputError, GameState]=
+    val currentMark = command._1
+    val position = command._2
+    board.placeMark(currentMark, position) match {
+      case Right(board) =>
+        val winner = board.checkWinner
+        if (board.isFull && winner.isEmpty) Right(GameState.GameOver(board, None))
+        else if (winner.nonEmpty) Right(GameState.GameOver(board, winner))
+        else {
+          val newMark = currentMark match {
+            case Mark.O => Mark.X
+            case _ => Mark.O
+          }
+          Right(GameState.Playing(board, newMark))
+        }
+      case Left(GameRulesError.SpaceAlreadyTaken) => Left(InputError.WrongInput("Can't place mark on a non-empty space!"))
+    }
 }
 // make companion object with live method
 
@@ -81,7 +112,7 @@ object LiveController {
   }
 }
 
-
+/*
 object EffectfulMain extends ZIOAppDefault:
   
   def inProgress(agg: TicTacToeAggregate): Task[Boolean] = {
@@ -142,6 +173,6 @@ object EffectfulMain extends ZIOAppDefault:
       newGame <- makeGame()
       _ <- inputLoop(newGame)
     } yield ()
-  
+  */
     
   

@@ -23,8 +23,22 @@ object ViewSpec extends ZIOSpecDefault {
       assertTrue(result == expected)
     },
     test("Game over") {
-      val result = View.render(GameState.GameOver(Mark.X))
-      val expected = "Game over! X won"
+      val board = TicTacToeBoard(
+        Vector(
+          Vector.tabulate[Mark](3)(_ => Mark.X),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty),
+          Vector.tabulate[Mark](3)(_ => Mark.Empty)
+        ))
+      val result = View.render(GameState.GameOver(board, Some(Mark.X)))
+      val expected =
+        """
+        |X | X | X
+        |----------
+        |- | - | -
+        |----------
+        |- | - | -
+        |++++++++++++++++++++++
+        |Game over! X won""".stripMargin
       assertTrue(result == expected)
     },
     test("Game in progress with X at 0,0 and O at 1,1") {

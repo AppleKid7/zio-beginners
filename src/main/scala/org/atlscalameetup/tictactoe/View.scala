@@ -4,17 +4,26 @@ package org.atlscalameetup.tictactoe
 
 object View {
   def render(state: GameState): String = {
+    def boardToString(board: TicTacToeBoard): String =
+      board.board.map { rows =>
+        rows.map { col =>
+          col match {
+            case Mark.Empty => "-"
+            case _ => col.toString
+          }
+        }.mkString(" | ")
+      }.mkString("\n----------\n")
     state match
-      case GameState.GameOver(winner) => s"Game over! $winner won"
+      case GameState.GameOver(board, winner) =>
+        val result: String = winner match {
+          case Some(winner) => s"${winner.asString} won"
+          case None => s"It was a tie!"
+        }
+        s"""
+        |${boardToString(board)}
+        |++++++++++++++++++++++
+        |Game over! $result""".stripMargin
       case GameState.Playing(board, _) =>
-        val result = board.board.map { rows =>
-          rows.map { col =>
-            col match {
-              case Mark.Empty => "-"
-              case _ => col.toString
-            }
-          }.mkString(" | ")
-        }.mkString("\n----------\n")
-        s"\n$result\n"
+        s"\n${boardToString(board)}\n"
   }
 }
