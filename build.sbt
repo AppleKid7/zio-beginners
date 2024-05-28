@@ -11,7 +11,7 @@ lazy val root = project
       version := "0.1.0-SNAPSHOT",
 
       scalaVersion := scala3Version,
-      fork := true,
+      Test / fork := true,
 
       libraryDependencies += "dev.zio" %% "zio" % zioVersion,
       libraryDependencies += "dev.zio" %% "zio-prelude" % zioPreludeVersion,

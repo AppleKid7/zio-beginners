@@ -61,3 +61,4 @@ enum Mark:
 enum GameState:
   case GameOver(finalBoard: TicTacToeBoard, winner: Option[Mark])
   case Playing(board: TicTacToeBoard, currentTurn: Mark)
+

@@ -2,7 +2,6 @@ package org.atlscalameetup.tictactoe
 
 import org.atlscalameetup.tictactoe.GameDomain.Player.X
 import org.atlscalameetup.tictactoe.GameDomain.Ruleset.XGoesFirst
-// import org.atlscalameetup.tictactoe.GameDomain.{BoardRepr, GameCommand, GameResult, GameState, Player, Square, TicTacToeAggregate, makeGame}
 import zio.*
 
 import scala.util.{Success, Try}
@@ -15,9 +14,8 @@ import cats.syntax.writer
 // write tests, delete them, then write them again
 
 trait Controller { // Implementation of Controller can depend on Console
-  def runGame: Task[Unit]
-  def gameLoop(currentMark: Mark, oldState: GameState): IO[InputError, Unit]
-  def handleInput(command: Command, board: TicTacToeBoard): Either[InputError, GameState]
+  def gameLoop(oldState: GameState): IO[InputError, Unit]
+  def parseCommand(input: String): Either[InputError, Command]
 }
 
 enum InputError:
@@ -29,28 +27,23 @@ enum InputError:
 type Command = (Mark, Position)
 
 case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends Controller {
-  override def runGame: Task[Unit] = ??? /*for {
-    console <- ZIO.service[Console]
-    _ <- console.printLine("X's turn")
-
-  } yield ()*/
-
-  override def gameLoop(currentMark: Mark, oldState: GameState): IO[InputError, Unit] =
+  override def gameLoop(oldState: GameState): IO[InputError, Unit] =
     for {
-      input <- console.readLine(">>> ").mapError(_ => InputError.ParsingError)
+
+      input <- console.readLine(">>>> ").orDie
       validated <- ZIO.fromEither(parseCommand(input))
       gameBoard <- board.get
-      _ <- handleInput(validated, gameBoard) match {
+      _ <- handleCommand(validated, gameBoard) match { //TODO improve this. If we could get the state, update the board, then render, it'd be even better
         case Right(newState) =>
           newState match {
-            case GameState.Playing(newBoard, newMark) => console.printLine(View.render(newState)).mapError(_ => InputError.GeneralConsoleError) <*> gameLoop(newMark, newState)
-            case gameOver: GameState.GameOver => console.printLine(View.render(gameOver)).mapError(_ => InputError.GeneralConsoleError)
+            case GameState.Playing(newBoard, newMark) => board.set(newBoard) <*> console.printLine(View.render(newState)).mapError(_ => InputError.GeneralConsoleError) <*> gameLoop(newState)
+            case gameOver: GameState.GameOver => board.set(gameOver.finalBoard) <*> console.printLine(View.render(gameOver)).mapError(_ => InputError.GeneralConsoleError)
           }
-        case Left(error) => gameLoop(currentMark, oldState)
-      } 
+        case Left(error) => gameLoop(oldState)
+      }
     } yield ()
 
-  private def parseCommand(input: String): Either[InputError, Command] = {
+  override def parseCommand(input: String): Either[InputError, Command] = {
     def checkBounds(col: Int, row: Int): Boolean =
       if ((col < 0 || col > 2) || (row < 0 || col > 2)) false
       else true
@@ -67,7 +60,7 @@ case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends 
     }
   }
 
-  override def handleInput(command: Command, board: TicTacToeBoard): Either[InputError, GameState]=
+  private def handleCommand(command: Command, board: TicTacToeBoard): Either[InputError, GameState]=
     val currentMark = command._1
     val position = command._2
     board.placeMark(currentMark, position) match {
