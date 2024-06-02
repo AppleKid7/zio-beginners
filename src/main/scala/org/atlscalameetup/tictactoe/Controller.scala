@@ -14,7 +14,7 @@ import cats.syntax.writer
 // write tests, delete them, then write them again
 
 trait Controller { // Implementation of Controller can depend on Console
-  def gameLoop(oldState: GameState): IO[InputError, Unit]
+  def gameLoop(oldState: GameState): Task[Unit]
   def parseCommand(input: String): Either[InputError, Command]
 }
 
@@ -22,24 +22,32 @@ enum InputError:
   case GeneralConsoleError
   case ParsingError
   case WrongInput(message: String)
+  def asString: String =
+    this match {
+      case WrongInput(msg) => msg
+      case _ => this.toString
+    }
 
+enum Command:
+  case Quit
+  case Play(mark: Mark, position: Position)
 
-type Command = (Mark, Position)
-
-case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends Controller {
-  override def gameLoop(oldState: GameState): IO[InputError, Unit] =
+case class LiveController(console: Console) extends Controller {
+  override def gameLoop(oldState: GameState): Task[Unit] =
     for {
-
-      input <- console.readLine(">>>> ").orDie
-      validated <- ZIO.fromEither(parseCommand(input))
-      gameBoard <- board.get
-      _ <- handleCommand(validated, gameBoard) match { //TODO improve this. If we could get the state, update the board, then render, it'd be even better
-        case Right(newState) =>
-          newState match {
-            case GameState.Playing(newBoard, newMark) => board.set(newBoard) <*> console.printLine(View.render(newState)).mapError(_ => InputError.GeneralConsoleError) <*> gameLoop(newState)
-            case gameOver: GameState.GameOver => board.set(gameOver.finalBoard) <*> console.printLine(View.render(gameOver)).mapError(_ => InputError.GeneralConsoleError)
+      input <- console.readLine(">>> ")
+      maybeValidated = parseCommand(input)
+      _ <- maybeValidated match {
+        case Right(command) =>
+          handleCommand(command, oldState.getBoard) match {
+            case Right(newState) =>
+              newState match {
+                case GameState.Playing(newBoard, newMark) => console.printLine(View.render(newState)) <*> gameLoop(newState)
+                case gameOver: GameState.GameOver => console.printLine(View.render(gameOver))
+              }
+            case Left(error) => console.printLine(error) <*> gameLoop(oldState)
           }
-        case Left(error) => gameLoop(oldState)
+        case Left(error) => console.printLine(error) <*> gameLoop(oldState)
       }
     } yield ()
 
@@ -52,30 +60,34 @@ case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends 
       case s"$mark: $col, $row" if (mark == "X" || mark == "O") =>
         (col.toIntOption, row.toIntOption) match {
           case (Some(col), Some(row)) if checkBounds(col, row) =>
-            Right((Mark.valueOf(mark), Position(col, row)))
+            Right(Command.Play(Mark.valueOf(mark), Position(col, row)))
           case (None, None) => Left(InputError.ParsingError)
           case _ => Left(InputError.WrongInput("Please make sure your input is in the correct numerical format: row, column"))
         }
+      case "exit" => Right(Command.Quit)
       case _ => Left(InputError.ParsingError)
     }
   }
 
   private def handleCommand(command: Command, board: TicTacToeBoard): Either[InputError, GameState]=
-    val currentMark = command._1
-    val position = command._2
-    board.placeMark(currentMark, position) match {
-      case Right(board) =>
-        val winner = board.checkWinner
-        if (board.isFull && winner.isEmpty) Right(GameState.GameOver(board, None))
-        else if (winner.nonEmpty) Right(GameState.GameOver(board, winner))
-        else {
-          val newMark = currentMark match {
-            case Mark.O => Mark.X
-            case _ => Mark.O
-          }
-          Right(GameState.Playing(board, newMark))
+    val winner = board.checkWinner
+    command match {
+      case Command.Quit => Right(GameState.GameOver(board, winner))
+      case Command.Play(currentMark, position) =>
+        board.placeMark(currentMark, position) match {
+          case Right(board) =>
+            val winner = board.checkWinner
+            if (board.isFull && winner.isEmpty) Right(GameState.GameOver(board, None))
+            else if (winner.nonEmpty) Right(GameState.GameOver(board, winner))
+            else {
+              val newMark = currentMark match {
+                case Mark.O => Mark.X
+                case _ => Mark.O
+              }
+              Right(GameState.Playing(board, newMark))
+            }
+          case Left(GameRulesError.SpaceAlreadyTaken) => Left(InputError.WrongInput("Can't place mark on a non-empty space!"))
         }
-      case Left(GameRulesError.SpaceAlreadyTaken) => Left(InputError.WrongInput("Can't place mark on a non-empty space!"))
     }
 }
 // make companion object with live method
@@ -97,11 +109,10 @@ case class LiveController(board: Ref[TicTacToeBoard], console: Console) extends 
 //  illegal moves?
 
 object LiveController {
-  def make(initial: TicTacToeBoard): ZLayer[Console, Nothing, LiveController] = ZLayer.scoped {
+  def make: ZLayer[Console, Nothing, LiveController] = ZLayer.scoped {
     for {
       console <- ZIO.service[Console]
-      board <- Ref.make(initial)
-    } yield LiveController(board, console)
+    } yield LiveController(console)
   }
 }
 

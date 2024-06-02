@@ -47,6 +47,16 @@ case class TicTacToeBoard(board: Vector[Vector[Mark]]) {
     }
   }
 }
+object TicTacToeBoard {
+  def initial: TicTacToeBoard =
+    TicTacToeBoard(
+      Vector(
+        Vector.tabulate[Mark](3)(_ => Mark.Empty),
+        Vector.tabulate[Mark](3)(_ => Mark.Empty),
+        Vector.tabulate[Mark](3)(_ => Mark.Empty)
+      )
+    )
+}
 
 enum Mark:
   case X, O, Empty
@@ -61,4 +71,9 @@ enum Mark:
 enum GameState:
   case GameOver(finalBoard: TicTacToeBoard, winner: Option[Mark])
   case Playing(board: TicTacToeBoard, currentTurn: Mark)
+  def getBoard: TicTacToeBoard =
+    this match {
+      case GameOver(board, _) => board
+      case Playing(board, _) => board
+    }
 

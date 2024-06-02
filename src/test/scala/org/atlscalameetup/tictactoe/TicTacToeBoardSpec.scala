@@ -6,12 +6,7 @@ import zio.test.Assertion.*
 object TicTacToeBoardSpec extends ZIOSpecDefault  {
   def spec = suite("TicTacToeBoardSpec")(
     test("No winner") {
-      val board = TicTacToeBoard(
-        Vector(
-          Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty)
-        ))
+      val board = TicTacToeBoard.initial
       val result = board.checkWinner
       assertTrue(result == None)
     },
@@ -26,12 +21,7 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
       assertTrue(result == Some(Mark.X))
     },
     test("placing X in 0,0") {
-      val board: TicTacToeBoard = TicTacToeBoard(
-        Vector(
-          Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty)
-        ))
+      val board = TicTacToeBoard.initial
       val result = board.placeMark(Mark.X, Position(0, 0))
       val expected = Right(TicTacToeBoard(
         Vector(
@@ -72,12 +62,7 @@ object TicTacToeBoardSpec extends ZIOSpecDefault  {
       })
     },
     test("Newly initialized board is empty") {
-      val board: TicTacToeBoard = TicTacToeBoard(
-        Vector(
-          Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty),
-          Vector.tabulate[Mark](3)(_ => Mark.Empty)
-        ))
+      val board = TicTacToeBoard.initial
       val result = board.isEmpty
       val expected = true
       assertTrue(result == expected)
