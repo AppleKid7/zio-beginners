@@ -35,8 +35,10 @@ enum Command:
 case class LiveController(console: Console) extends Controller {
   override def gameLoop(oldState: GameState): Task[Unit] =
     for {
+      currentMark <- ZIO.fromOption(oldState.getMark).mapError(_ => new Throwable("getMark error"))
+      _ <- console.printLine(s"$currentMark's turn")
       input <- console.readLine(">>> ")
-      maybeValidated = parseCommand(input)
+      maybeValidated = parseCommand(s"$currentMark: $input")
       _ <- maybeValidated match {
         case Right(command) =>
           handleCommand(command, oldState.getBoard) match {
@@ -64,7 +66,7 @@ case class LiveController(console: Console) extends Controller {
           case (None, None) => Left(InputError.ParsingError)
           case _ => Left(InputError.WrongInput("Please make sure your input is in the correct numerical format: row, column"))
         }
-      case "exit" => Right(Command.Quit)
+      case _ if input.contains("exit") => Right(Command.Quit)
       case _ => Left(InputError.ParsingError)
     }
   }

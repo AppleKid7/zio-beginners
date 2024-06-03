@@ -76,4 +76,9 @@ enum GameState:
       case GameOver(board, _) => board
       case Playing(board, _) => board
     }
+  def getMark: Option[Mark] =
+    this match {
+      case Playing(_, mark) => Some(mark)
+      case GameOver(_, markOpt) => markOpt
+    }
 
