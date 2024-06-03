@@ -5,12 +5,10 @@ import zio.*
 object Main extends ZIOAppDefault {
   val run = (for {
     controller <- ZIO.environment[Controller]
-    initialBoard = TicTacToeBoard.initial
-    initialState = GameState.Playing(initialBoard, Mark.X)
-    _ <- controller.get.gameLoop(initialState)
+    _ <- controller.get.gameLoop()
   } yield ()).provide(
     ZLayer.succeed(Console.ConsoleLive),
-    LiveController.make,
+    LiveController.make(GameState.initial),
     // LiveController.make(TicTacToeBoard.initial)
   )
 }

@@ -82,3 +82,7 @@ enum GameState:
       case GameOver(_, markOpt) => markOpt
     }
 
+object GameState {
+  def initial: GameState = GameState.Playing(TicTacToeBoard.initial, Mark.X)
+}
+

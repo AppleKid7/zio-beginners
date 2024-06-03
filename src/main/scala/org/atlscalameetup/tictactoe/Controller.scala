@@ -14,7 +14,7 @@ import cats.syntax.writer
 // write tests, delete them, then write them again
 
 trait Controller { // Implementation of Controller can depend on Console
-  def gameLoop(oldState: GameState): Task[Unit]
+  def gameLoop(): Task[Unit]
   def parseCommand(input: String): Either[InputError, Command]
 }
 
@@ -32,24 +32,30 @@ enum Command:
   case Quit
   case Play(mark: Mark, position: Position)
 
-case class LiveController(console: Console) extends Controller {
-  override def gameLoop(oldState: GameState): Task[Unit] =
+case class LiveController(state: Ref[GameState], console: Console) extends Controller {
+  override def gameLoop(): Task[Unit] =
     for {
+      oldState <- state.get
       currentMark <- ZIO.fromOption(oldState.getMark).mapError(_ => new Throwable("getMark error"))
       _ <- console.printLine(s"$currentMark's turn")
       input <- console.readLine(">>> ")
       maybeValidated = parseCommand(s"$currentMark: $input")
-      _ <- maybeValidated match {
-        case Right(command) =>
-          handleCommand(command, oldState.getBoard) match {
-            case Right(newState) =>
-              newState match {
-                case GameState.Playing(newBoard, newMark) => console.printLine(View.render(newState)) <*> gameLoop(newState)
-                case gameOver: GameState.GameOver => console.printLine(View.render(gameOver))
-              }
-            case Left(error) => console.printLine(error) <*> gameLoop(oldState)
-          }
-        case Left(error) => console.printLine(error) <*> gameLoop(oldState)
+      (errorOpt, updatedState) = maybeValidated match {
+        case Right(command) => handleCommand(command, oldState.getBoard) match {
+          case Right(newState) => (None, newState)
+          case Left(error) => (Some(error), oldState)
+        }
+        case Left(error) => (Some(error), oldState)
+      }
+      _ <- errorOpt match {
+        case Some(error) => console.printLine(error)
+        case None => ZIO.unit
+      }
+      _ <- updatedState match {
+        case playing: GameState.Playing =>
+          state.set(playing) <*> console.printLine(View.render(playing)) <*> gameLoop()
+        case gameOver: GameState.GameOver =>
+          state.set(gameOver) <*> console.printLine(View.render(gameOver))
       }
     } yield ()
 
@@ -111,10 +117,11 @@ case class LiveController(console: Console) extends Controller {
 //  illegal moves?
 
 object LiveController {
-  def make: ZLayer[Console, Nothing, LiveController] = ZLayer.scoped {
+  def make(initalState: GameState): ZLayer[Console, Nothing, LiveController] = ZLayer.scoped {
     for {
       console <- ZIO.service[Console]
-    } yield LiveController(console)
+      stateRef <- Ref.make[GameState](initalState)
+    } yield LiveController(stateRef, console)
   }
 }
 
