@@ -1,9 +1,11 @@
 package org.atlscalameetup.tictactoe
 
+import org.atlscalameetup.tictactoe.GameDomain.GameResult.Won
 import org.atlscalameetup.tictactoe.GameDomain.Player.X
 import org.atlscalameetup.tictactoe.GameDomain.Ruleset.XGoesFirst
 import org.atlscalameetup.tictactoe.GameDomain.{BoardRepr, GameCommand, GameResult, GameState, Player, Square, TicTacToeAggregate, makeGame}
 import zio.*
+import zio.Console.*
 
 import scala.util.{Success, Try}
 
@@ -42,58 +44,77 @@ case class LiveController() extends Controller {
 
 object EffectfulMain extends ZIOAppDefault:
   
-  def inProgress(agg: TicTacToeAggregate): Task[Boolean] = {
-    agg.queryState.map {
-      case GameState.NotStarted => true
-      case GameState.InProgress(rules, boardRepr) => true
-      case GameState.Finished(finalBoard) => false
+  private def isInProgress(game: TicTacToeAggregate): Task[Boolean] =
+    game.queryState.map {
+      case GameState.NotStarted =>       true
+      case GameState.InProgress(_, _) => true
+      case GameState.Finished(_) =>      false
     }
-  }
 
-  val standardFailure = Left("Failed to parse command, try 'Start', 'X (row) (col)', 'O (row) (col)'")
+  private val standardFailure = ParseResult.Failure("Failed to parse command, try 'Start', 'X (row) (col)', 'O (row) (col)'")
+
+  private enum ParseResult:
+    case Exit
+    case Failure(message: String)
+    case Success(command: GameCommand)
   
-  def parse(input:String): Either[String, GameCommand] =
-    input.toUpperCase match {
+  private def parse(input:String): ParseResult =
+    input.trim.toUpperCase match
+      case "QUIT" => ParseResult.Exit
+      case "EXIT" => ParseResult.Exit
       case "START" =>
-        Right(GameCommand.Start(XGoesFirst))
+        ParseResult.Success(GameCommand.Start(XGoesFirst))
       case s"$player $row $col" =>
         val playerObj = Try(Player.valueOf(player))
-        (playerObj, row.toIntOption, col.toIntOption) match {
-          case (Success(p), Some(r), Some(c)) => Right(GameCommand.Play(p, Position(r, c)))
+        (playerObj, row.toIntOption, col.toIntOption) match
+          case (Success(p), Some(r), Some(c)) if r < 3 && c < 3 => ParseResult.Success(GameCommand.Play(p, Position(c, r)))
           case _ => standardFailure
-        }
       case _ => standardFailure
-    }
-    
-  def formatBoard(b: BoardRepr): String =
-    "\n" + (b.map(_.map {
-      case Square.Played(p) => p.toString
-      case Square.Empty => " "
-    }.mkString(" | ")).mkString("\n-----------\n")) + "\n"
-    
-  def formatResult(result: GameResult): String =
-    result match
-      case GameResult.Success(nextPlayer, boardRepr) => 
-        s"Success! Player $nextPlayer goes next.\n" + formatBoard(boardRepr) 
-      case other: GameResult => other.message
 
-  def inputLoop(agg:TicTacToeAggregate): Task[Unit] =
-    for {
-      input <- zio.Console.readLine(">>> ")
-      maybeCommand = parse(input)
-      _ <- maybeCommand match {
-                case Left(errMessage) =>
-                  zio.Console.printLine(errMessage).flatMap {_ => inputLoop(agg)}
-                case Right(command) => 
-                  for {
-                    result <- agg.acceptCommand(command)
-                    output = formatResult(result)
-                    _ <- zio.Console.printLine(output)
-                    continue <- inProgress(agg)
-                    _ <- if(continue) inputLoop(agg) else zio.Console.printLine("All Finished")
-                  } yield ()
-            }
-    } yield ()
+
+  private def formatRow(row: Array[Square]): String =
+    " " + row.map {
+      case Square.Played(Player.X) => "X"
+      case Square.Played(Player.O) => "O"
+      case Square.Empty => " "
+    }.mkString(" │ ") + " "
+
+  private def formatBoard(board: BoardRepr): String =
+    "\n" + board.map(formatRow).mkString("\n───┼───┼───\n") + "\n"
+    
+  private def formatResult(result: GameResult): String =
+    result match 
+      case GameResult.Success(nextPlayer, boardRepr) =>
+        s"Success! Player $nextPlayer goes next.\n" + formatBoard(boardRepr)
+      case w@Won(winner, finalBoard) =>
+        s"${w.message}"
+      case other: GameResult =>
+        other.message
+
+  private def inputLoop(game:TicTacToeAggregate): Task[Unit] =
+      for {
+        input <- readLine(">>> ")
+        _ <- parse(input) match {
+          case ParseResult.Exit =>
+            for {
+              _ <- printLine("Exiting.")
+            } yield ()
+          case ParseResult.Failure(errMessage) =>
+            for {
+              _ <- printLine(errMessage)
+              _ <- inputLoop(game)
+            } yield ()
+          case ParseResult.Success(command) =>
+            for {
+              result <- game.acceptCommand(command)
+              output = formatResult(result)
+              _ <- printLine(output)
+              shouldContinue <- isInProgress(game)
+              _ <- if (shouldContinue) inputLoop(game) else printLine("All Finished")
+            } yield ()
+        }
+      } yield ()
+
 
   def run: ZIO[Any & ZIOAppArgs & Scope, Throwable, Unit] =
     for {

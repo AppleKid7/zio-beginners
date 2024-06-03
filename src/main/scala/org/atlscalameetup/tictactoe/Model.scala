@@ -4,6 +4,7 @@ import monocle.syntax.all.*
 
 
 case class Position(col: Int, row: Int) {
+  assert(col < 3 && row < 3)
   def get(b: TicTacToeBoard) = b.board(col)(row)
   def set(b: TicTacToeBoard, mark: Mark) = b.board(col)(row)
 }

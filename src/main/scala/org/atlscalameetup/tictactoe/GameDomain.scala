@@ -35,7 +35,7 @@ object GameDomain:
 
     def isFull: Boolean = board.flatten.forall {
       case Played(_) => true
-      case Empty => false
+      case _ => false
     }
 
     def get(pos:Position): Square = board(pos.row)(pos.col)
@@ -44,21 +44,21 @@ object GameDomain:
       board.updated(pos.row, board(pos.row).updated(pos.col, Square.Played(player)))
 
     def countPlays: Int = board.flatten.count {
-      case Played(p) => true
+      case Played(_) => true
       case Empty => false
     }
 
-    def extractRow(row:Int): Seq[Square] = board(row)
+    def getRow(row:Int): Seq[Square] = board(row)
 
-    def extractCol(col:Int): Seq[Square] = board.map(_(col))
+    def getCol(col:Int): Seq[Square] = board.map(_(col))
 
-    def extractDiag1(): Seq[Square] = Array(board(0)(0), board(1)(1), board(2)(2))
+    def getDiag1: Seq[Square] = Array(board(0)(0), board(1)(1), board(2)(2))
 
-    def extractDiag2(): Seq[Square] = Array(board(0)(2), board(1)(1), board(2)(0))
+    def getDiag2: Seq[Square] = Array(board(0)(2), board(1)(1), board(2)(0))
 
     def extractTriples(): Seq[Seq[Square]] =
       val indices = 0.to(2)
-      indices.map(extractRow) ++ indices.map(extractCol) :+ extractDiag1() :+ extractDiag2()
+      indices.map(getRow) ++ indices.map(getCol) :+ getDiag1 :+ getDiag2
 
     def hasWinner(player:Player): Boolean =
       extractTriples().exists { triple =>
@@ -82,14 +82,14 @@ object GameDomain:
     case Play(who: Player, pos: Position)
 
   enum GameResult(val message: String):
+    case HasNotStarted                                     extends GameResult(s"The game must be started first")
+    case AlreadyStarted                                    extends GameResult("Cannot restart an already started game.")
+    case AlreadyFinished                                   extends GameResult("Game is finished.")
     case Success(nextPlayer: Player, boardRepr: BoardRepr) extends GameResult(s"Play accepted.")
-    case HasNotStarted extends GameResult(s"The game must be started first")
-    case OutOfTurn(nextPlayer: Player) extends GameResult(s"You played out of turn; $nextPlayer is next.")
-    case SquareOccupied(nextPlayer: Player) extends GameResult(s"That square is already occupied. $nextPlayer is next.")
-    case Won(winner: Player, finalBoard: BoardRepr) extends GameResult(s"The game has ended. $winner has won.")
-    case Drew(finalBoard: BoardRepr) extends GameResult(s"The game is a draw.")
-    case AlreadyFinished extends GameResult("Game is finished.")
-    case AlreadyStarted extends GameResult("Cannot restart an already started game.")
+    case OutOfTurn(nextPlayer: Player)                     extends GameResult(s"You played out of turn; $nextPlayer is next.")
+    case SquareOccupied(nextPlayer: Player)                extends GameResult(s"That square is already occupied. $nextPlayer is next.")
+    case Won(winner: Player, finalBoard: BoardRepr)        extends GameResult(s"The game has ended. $winner has won.")
+    case Drew(finalBoard: BoardRepr)                       extends GameResult(s"The game is a draw.")
 
   trait TicTacToeAggregate extends Aggregate[GameCommand, GameResult, GameState]
 
@@ -112,7 +112,6 @@ object GameDomain:
                 case _ =>
                   (HasNotStarted, NotStarted)
 
-
             case state@InProgress(rules, board) =>
               cmd match
                 case _:Start =>
@@ -123,16 +122,17 @@ object GameDomain:
                     (OutOfTurn(expectedNextPlayer), state)
                   else
                     board.get(pos) match
-                      case Square.Played(p) =>
+                      case Square.Played(_) =>
                         (SquareOccupied(expectedNextPlayer), state)
                       case Square.Empty =>
                         val newBoard = board.set(pos, player)
-                        if (newBoard.hasWinner(player)) then
+                        if newBoard.hasWinner(player) then
                           (Won(player, newBoard), Finished(newBoard))
                         else
-                          if (newBoard.isFull) then
+                          if newBoard.isFull then
                             (Drew(newBoard), Finished(newBoard))
-                          (Success(getNextPlayer(rules, newBoard),  newBoard), InProgress(rules, newBoard))
+                          else
+                            (Success(getNextPlayer(rules, newBoard),  newBoard), InProgress(rules, newBoard))
 
             case state:Finished =>
               (AlreadyFinished, state)
