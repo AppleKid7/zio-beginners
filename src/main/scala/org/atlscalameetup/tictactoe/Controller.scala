@@ -1,7 +1,5 @@
 package org.atlscalameetup.tictactoe
 
-import org.atlscalameetup.tictactoe.GameDomain.Player.X
-import org.atlscalameetup.tictactoe.GameDomain.Ruleset.XGoesFirst
 import zio.*
 
 import scala.util.{Success, Try}
@@ -39,17 +37,22 @@ case class LiveController(console: Console) extends Controller {
       _ <- console.printLine(s"$currentMark's turn")
       input <- console.readLine(">>> ")
       maybeValidated = parseCommand(s"$currentMark: $input")
-      _ <- maybeValidated match {
-        case Right(command) =>
-          handleCommand(command, oldState.getBoard) match {
-            case Right(newState) =>
-              newState match {
-                case GameState.Playing(newBoard, newMark) => console.printLine(View.render(newState)) <*> gameLoop(newState)
-                case gameOver: GameState.GameOver => console.printLine(View.render(gameOver))
-              }
-            case Left(error) => console.printLine(error) <*> gameLoop(oldState)
-          }
-        case Left(error) => console.printLine(error) <*> gameLoop(oldState)
+      (errorOpt, updatedState) = maybeValidated match {
+        case Right(command) => handleCommand(command, oldState.getBoard) match {
+          case Right(newState) => (None, newState)
+          case Left(error) => (Some(error), oldState)
+        }
+        case Left(error) => (Some(error), oldState)
+      }
+      _ <- errorOpt match {
+        case Some(error) => console.printLine(error)
+        case None => ZIO.unit
+      }
+      _ <- updatedState match {
+        case updatedState: GameState.Playing =>
+          console.printLine(View.render(updatedState)) <*> gameLoop(updatedState)
+        case updatedState: GameState.GameOver =>
+          console.printLine(View.render(updatedState))
       }
     } yield ()
 
