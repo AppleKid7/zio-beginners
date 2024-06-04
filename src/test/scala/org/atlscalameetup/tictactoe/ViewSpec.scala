@@ -10,16 +10,17 @@ object ViewSpec extends ZIOSpecDefault {
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
           Vector.tabulate[Mark](3)(_ => Mark.Empty)
-        ))
+        )
+      )
       val result = View.render(GameState.Playing(board, Mark.X))
       val expected =
         """
-        |- | - | -
-        |----------
-        |- | - | -
-        |----------
-        |- | - | -
-        |""".stripMargin
+          |- | - | -
+          |----------
+          |- | - | -
+          |----------
+          |- | - | -
+          |""".stripMargin
       assertTrue(result == expected)
     },
     test("Game over") {
@@ -28,17 +29,18 @@ object ViewSpec extends ZIOSpecDefault {
           Vector.tabulate[Mark](3)(_ => Mark.X),
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
           Vector.tabulate[Mark](3)(_ => Mark.Empty)
-        ))
+        )
+      )
       val result = View.render(GameState.GameOver(board, Some(Mark.X)))
       val expected =
         """
-        |X | X | X
-        |----------
-        |- | - | -
-        |----------
-        |- | - | -
-        |++++++++++++++++++++++
-        |Game over! X won""".stripMargin
+          |X | X | X
+          |----------
+          |- | - | -
+          |----------
+          |- | - | -
+          |++++++++++++++++++++++
+          |Game over! X won""".stripMargin
       assertTrue(result == expected)
     },
     test("Game in progress with X at 0,0 and O at 1,1") {
@@ -47,9 +49,10 @@ object ViewSpec extends ZIOSpecDefault {
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
           Vector.tabulate[Mark](3)(_ => Mark.Empty),
           Vector.tabulate[Mark](3)(_ => Mark.Empty)
-        ))
+        )
+      )
       for {
-        boardX <- board.placeMark(Mark.X, Position(0,0))
+        boardX <- board.placeMark(Mark.X, Position(0, 0))
         boardY <- boardX.placeMark(Mark.O, Position(1, 1))
         result = View.render(GameState.Playing(boardY, Mark.X))
       } yield {
@@ -63,6 +66,6 @@ object ViewSpec extends ZIOSpecDefault {
             |""".stripMargin
         assertTrue(result == expected)
       }
-    },
+    }
   )
 }

@@ -7,19 +7,17 @@ lazy val monocleVersion = "3.2.0"
 lazy val root = project
   .in(file("."))
   .settings(
-      name := "zio-beginners",
-      version := "0.1.0-SNAPSHOT",
-
-      scalaVersion := scala3Version,
-      Test / fork := true,
-      run / connectInput := true,
-      run / fork := true,
-
-      libraryDependencies += "dev.zio" %% "zio" % zioVersion,
-      libraryDependencies += "dev.zio" %% "zio-prelude" % zioPreludeVersion,
-      libraryDependencies += "dev.optics" %% "monocle-core"  % monocleVersion,
-      libraryDependencies += "dev.optics" %% "monocle-macro" % monocleVersion,
-      libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test,
-      libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
-      libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test,
+    name := "zio-beginners",
+    version := "0.1.0-SNAPSHOT",
+    scalaVersion := scala3Version,
+    Test / fork := true,
+    run / connectInput := true,
+    run / fork := true,
+    libraryDependencies += "dev.zio" %% "zio" % zioVersion,
+    libraryDependencies += "dev.zio" %% "zio-prelude" % zioPreludeVersion,
+    libraryDependencies += "dev.optics" %% "monocle-core" % monocleVersion,
+    libraryDependencies += "dev.optics" %% "monocle-macro" % monocleVersion,
+    libraryDependencies += "dev.zio" %% "zio-test" % zioVersion % Test,
+    libraryDependencies += "dev.zio" %% "zio-test-sbt" % zioVersion % Test,
+    libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test
   )

@@ -10,7 +10,6 @@ object Main extends ZIOAppDefault {
     _ <- controller.get.gameLoop(initialState)
   } yield ()).provide(
     ZLayer.succeed(Console.ConsoleLive),
-    LiveController.make,
-    // LiveController.make(TicTacToeBoard.initial)
+    LiveController.make
   )
 }

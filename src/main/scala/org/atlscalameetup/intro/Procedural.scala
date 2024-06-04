@@ -1,6 +1,5 @@
 package org.atlscalameetup.intro
 
-
 def aTransactionProcedural(amount: Money): Money = {
   val withProcessingFee = (amount * 1.05).setScale(2, BigDecimal.RoundingMode.HALF_UP)
   println(s"${YELLOW}sending amount to db $$$withProcessingFee${RESET}")
@@ -23,4 +22,3 @@ object Procedural2 {
 }
 
 // Referential transparency!
-
