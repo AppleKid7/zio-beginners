@@ -25,24 +25,34 @@ def makeInMemoryRepository: Task[Repository] =
 
 
 
-trait Sqlite {
+trait SqliteConnection {
+  /** Blocks while executing the query */
   def execute(q: String, args: Any*): Unit
+
+  /** Closes this SqliteConnection; blocks while file is closed */
   def close(): Unit
 }
 
-def makeFileRepository(filename: String): ZLayer[Scope, Throwable, Repository] = {
-  def openSqlite: ZIO[Any, Throwable, Sqlite] = ???
+object SqliteConnection {
+  /** blocks while opening the SQLite file */
+  def open(filename: String): SqliteConnection = ???
+}
 
-  def closeSqlite(sqlite: Sqlite): ZIO[Any, Nothing, Unit] = ZIO.succeedBlocking(sqlite.close())
+def makeFileRepository(filename: String): ZLayer[Scope, Throwable, Repository] = {
+  def openSqlite: ZIO[Any, Throwable, SqliteConnection] =
+    ZIO.attemptBlocking(SqliteConnection.open(filename))
+
+  def closeSqlite(conn: SqliteConnection): ZIO[Any, Nothing, Unit] =
+    ZIO.succeedBlocking(conn.close())
 
   ZLayer.scoped(
     for {
-      sqliteConnection <- ZIO.acquireRelease(openSqlite)(closeSqlite)
+      conn <- ZIO.acquireRelease(openSqlite)(closeSqlite)
     } yield new Repository:
       override def getGame(id: String): Task[Option[GameState]] =
         for {
           result <- ZIO.attemptBlockingIO(
-            sqliteConnection.execute("SELECT * FROM game WHERE id = ?", id)
+            conn.execute("SELECT * FROM game WHERE id = ?", id)
           )
         } yield {
           ??? // construct game from result
@@ -50,7 +60,7 @@ def makeFileRepository(filename: String): ZLayer[Scope, Throwable, Repository] =
 
       override def putGame(id: String, game: GameState): Task[Unit] =
         ZIO.attemptBlockingIO(
-          sqliteConnection.execute("INSERT OR UPDATE game SET ...", game)
+          conn.execute("INSERT OR UPDATE game SET ...", game)
         )
   )
 }
