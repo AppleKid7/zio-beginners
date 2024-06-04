@@ -1,7 +1,7 @@
 val scala3Version = "3.3.3"
 
-lazy val zioVersion = "2.1.1"
-lazy val zioPreludeVersion = "1.0.0-RC26"
+lazy val zioVersion = "2.1.2"
+lazy val zioPreludeVersion = "1.0.0-RC27"
 lazy val monocleVersion = "3.2.0"
 
 lazy val root = project
@@ -12,6 +12,8 @@ lazy val root = project
 
       scalaVersion := scala3Version,
       Test / fork := true,
+      run / connectInput := true,
+      run / fork := true,
 
       libraryDependencies += "dev.zio" %% "zio" % zioVersion,
       libraryDependencies += "dev.zio" %% "zio-prelude" % zioPreludeVersion,
