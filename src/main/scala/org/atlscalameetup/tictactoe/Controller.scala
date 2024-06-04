@@ -4,6 +4,8 @@ import zio.*
 
 import scala.util.{Success, Try}
 import cats.syntax.writer
+import org.atlscalameetup.tictactoe.GameState.Playing
+import org.atlscalameetup.tictactoe.Mark.X
 
 // ZIO stuff here
 // all the I/O goes here
@@ -12,7 +14,7 @@ import cats.syntax.writer
 // write tests, delete them, then write them again
 
 trait Controller { // Implementation of Controller can depend on Console
-  def gameLoop(oldState: GameState): Task[Unit]
+  def gameLoop(gameId: String): Task[Unit]
   def parseCommand(input: String): Either[InputError, Command]
 }
 
@@ -30,9 +32,19 @@ enum Command:
   case Quit
   case Play(mark: Mark, position: Position)
 
-case class LiveController(console: Console) extends Controller {
-  override def gameLoop(oldState: GameState): Task[Unit] =
+case class LiveController(console: Console, repo: Repository) extends Controller {
+  val freshGame: GameState = Playing(TicTacToeBoard.initial, X)
+  
+  override def gameLoop(gameId: String): Task[Unit] =
     for {
+      game <- repo.getGame(gameId)
+      oldState <- game match {
+        case None =>
+          console.printLine(s"starting new game with id $gameId") *>
+            ZIO.succeed(freshGame)
+        case Some(s) =>
+            ZIO.succeed(s)
+      }
       currentMark <- ZIO.fromOption(oldState.getMark).mapError(_ => new Throwable("getMark error"))
       _ <- console.printLine(s"$currentMark's turn")
       input <- console.readLine(">>> ")
@@ -50,9 +62,11 @@ case class LiveController(console: Console) extends Controller {
       }
       _ <- updatedState match {
         case updatedState: GameState.Playing =>
-          console.printLine(View.render(updatedState)) <*> gameLoop(updatedState)
+          repo.putGame(gameId, updatedState) *> 
+            console.printLine(View.render(updatedState)) <*> gameLoop(gameId)
         case updatedState: GameState.GameOver =>
-          console.printLine(View.render(updatedState))
+          repo.putGame(gameId, updatedState) *>
+            console.printLine(View.render(updatedState))
       }
     } yield ()
 
@@ -114,10 +128,13 @@ case class LiveController(console: Console) extends Controller {
 //  illegal moves?
 
 object LiveController {
-  def make: ZLayer[Console, Nothing, LiveController] = ZLayer.scoped {
-    for {
-      console <- ZIO.service[Console]
-    } yield LiveController(console)
-  }
+  def make: ZLayer[Console & Repository, Nothing, LiveController] =
+    ZLayer.fromFunction(LiveController.apply)
+//    ZLayer.scoped {
+//      for {
+//        console <- ZIO.service[Console]
+//        repo <- ZIO.service[Repository]
+//      } yield LiveController(console, repo)
+//    }
 }
   
