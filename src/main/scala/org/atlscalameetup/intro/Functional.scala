@@ -36,7 +36,7 @@ object Functional2 extends ZIOAppDefault {
     second <- transaction
   } yield (first + second)
 
-  // Here we specify how it's going to be run 
+  // Here we specify how it's going to be run
   val run = for {
     result <- twoTransactions
     _ <- Console.printLine(s"${BLUE}two transactions: $result${RESET}")

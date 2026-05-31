@@ -1,8 +1,8 @@
-val scala3Version = "3.3.3"
+val scala3Version = "3.8.3"
 
-lazy val zioVersion = "2.1.2"
-lazy val zioPreludeVersion = "1.0.0-RC27"
-lazy val monocleVersion = "3.2.0"
+lazy val zioVersion = "2.1.26"
+lazy val zioPreludeVersion = "1.0.0-RC47"
+lazy val monocleVersion = "3.3.0"
 
 lazy val root = project
   .in(file("."))
@@ -11,6 +11,7 @@ lazy val root = project
     version := "0.1.0-SNAPSHOT",
     scalaVersion := scala3Version,
     Test / fork := true,
+    Test / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     run / connectInput := true,
     // run / fork := true,
     libraryDependencies += "dev.zio" %% "zio" % zioVersion,

@@ -1,7 +1,6 @@
 package org.atlscalameetup.tictactoe
 
 import zio.*
-
 import scala.util.{Success, Try}
 import cats.syntax.writer
 import org.atlscalameetup.tictactoe.GameState.Playing
@@ -34,7 +33,7 @@ enum Command:
 
 case class LiveController(console: Console, repo: Repository) extends Controller {
   val freshGame: GameState = Playing(TicTacToeBoard.initial, X)
-  
+
   override def gameLoop(gameId: String): Task[Unit] =
     for {
       game <- repo.getGame(gameId)
@@ -43,17 +42,18 @@ case class LiveController(console: Console, repo: Repository) extends Controller
           console.printLine(s"starting new game with id $gameId") *>
             ZIO.succeed(freshGame)
         case Some(s) =>
-            ZIO.succeed(s)
+          ZIO.succeed(s)
       }
       currentMark <- ZIO.fromOption(oldState.getMark).mapError(_ => new Throwable("getMark error"))
       _ <- console.printLine(s"$currentMark's turn")
       input <- console.readLine(">>> ")
       maybeValidated = parseCommand(s"$currentMark: $input")
       (errorOpt, updatedState) = maybeValidated match {
-        case Right(command) => handleCommand(command, oldState.getBoard) match {
-          case Right(newState) => (None, newState)
-          case Left(error) => (Some(error), oldState)
-        }
+        case Right(command) =>
+          handleCommand(command, oldState.getBoard) match {
+            case Right(newState) => (None, newState)
+            case Left(error) => (Some(error), oldState)
+          }
         case Left(error) => (Some(error), oldState)
       }
       _ <- errorOpt match {
@@ -62,7 +62,7 @@ case class LiveController(console: Console, repo: Repository) extends Controller
       }
       _ <- updatedState match {
         case updatedState: GameState.Playing =>
-          repo.putGame(gameId, updatedState) *> 
+          repo.putGame(gameId, updatedState) *>
             console.printLine(View.render(updatedState)) <*> gameLoop(gameId)
         case updatedState: GameState.GameOver =>
           repo.putGame(gameId, updatedState) *>
@@ -81,14 +81,22 @@ case class LiveController(console: Console, repo: Repository) extends Controller
           case (Some(col), Some(row)) if checkBounds(col, row) =>
             Right(Command.Play(Mark.valueOf(mark), Position(col, row)))
           case (None, None) => Left(InputError.ParsingError)
-          case _ => Left(InputError.WrongInput("Please make sure your input is in the correct numerical format: row, column"))
+          case _ =>
+            Left(
+              InputError.WrongInput(
+                "Please make sure your input is in the correct numerical format: row, column"
+              )
+            )
         }
       case _ if input.contains("exit") => Right(Command.Quit)
       case _ => Left(InputError.ParsingError)
     }
   }
 
-  private def handleCommand(command: Command, board: TicTacToeBoard): Either[InputError, GameState]=
+  private def handleCommand(
+      command: Command,
+      board: TicTacToeBoard
+  ): Either[InputError, GameState] =
     val winner = board.checkWinner
     command match {
       case Command.Quit => Right(GameState.GameOver(board, winner))
@@ -105,7 +113,8 @@ case class LiveController(console: Console, repo: Repository) extends Controller
               }
               Right(GameState.Playing(board, newMark))
             }
-          case Left(GameRulesError.SpaceAlreadyTaken) => Left(InputError.WrongInput("Can't place mark on a non-empty space!"))
+          case Left(GameRulesError.SpaceAlreadyTaken) =>
+            Left(InputError.WrongInput("Can't place mark on a non-empty space!"))
         }
     }
 }
@@ -118,7 +127,7 @@ case class LiveController(console: Console, repo: Repository) extends Controller
 //    in Java you bundle together the how with the what.
 // 2) effect to transform that does the first effect but in a retry fashion
 //    transform. Use fork to do something in the background, timeout,
-//    
+//
 //# create the app separating business logic
 //# delete ZIO parts
 //# re write and delete and rewrite at least one cycle like that
@@ -137,4 +146,3 @@ object LiveController {
 //      } yield LiveController(console, repo)
 //    }
 }
-  

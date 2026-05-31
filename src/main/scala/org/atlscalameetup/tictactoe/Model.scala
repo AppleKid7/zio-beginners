@@ -43,7 +43,9 @@ case class TicTacToeBoard(board: Vector[Vector[Mark]]) {
           this.focus(_.board.index(position.row).index(position.col)).replace(mark)
         )
       case _ =>
-        Left(GameRulesError.SpaceAlreadyTaken) //("Can't place a mark on a space that's already taken!")
+        Left(
+          GameRulesError.SpaceAlreadyTaken
+        ) // ("Can't place a mark on a space that's already taken!")
     }
   }
 }
@@ -81,4 +83,3 @@ enum GameState:
       case Playing(_, mark) => Some(mark)
       case GameOver(_, markOpt) => markOpt
     }
-

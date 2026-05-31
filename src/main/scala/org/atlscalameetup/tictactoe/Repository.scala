@@ -6,26 +6,19 @@ trait Repository:
   def getGame(id: String): Task[Option[GameState]]
   def putGame(id: String, game: GameState): Task[Unit]
 
-
 def makeInMemoryRepository: Task[Repository] =
-  for
-    storageRef <- zio.Ref.make(Map.empty[String, GameState])
+  for storageRef <- zio.Ref.make(Map.empty[String, GameState])
   yield new Repository:
     override def getGame(id: String): Task[Option[GameState]] =
-      for
-        storage <- storageRef.get
-      yield
-        storage.get(id)
+      for storage <- storageRef.get
+      yield storage.get(id)
 
     override def putGame(id: String, game: GameState): Task[Unit] =
       storageRef.update: storage =>
         storage + (id -> game)
 
-
-
-
-
 trait SqliteConnection {
+
   /** Blocks while executing the query */
   def execute(q: String, args: Any*): Unit
 
@@ -34,6 +27,7 @@ trait SqliteConnection {
 }
 
 object SqliteConnection {
+
   /** blocks while opening the SQLite file */
   def open(filename: String): SqliteConnection = ???
 }
