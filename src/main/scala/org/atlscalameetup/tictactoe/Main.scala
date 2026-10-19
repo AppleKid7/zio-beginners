@@ -1,7 +1,17 @@
 package org.atlscalameetup.tictactoe
 
-@main def hello: Unit =
-  println("Hello world!")
-  println(msg)
+import zio.*
 
-def msg = "I was compiled by Scala 3. :)"
+object Main extends ZIOAppDefault {
+  val run = (for {
+    controller <- ZIO.environment[Controller]
+    random <- ZIO.environment[Random]
+    gameId <- random.get.nextUUID
+    _ <- controller.get.gameLoop(gameId.toString)
+  } yield ()).provide(
+    ZLayer.succeed(Random.RandomLive),
+    ZLayer.succeed(Console.ConsoleLive),
+    ZLayer.fromZIO(makeInMemoryRepository),
+    LiveController.make
+  )
+}
